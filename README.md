@@ -45,7 +45,7 @@ The sensors section contains the usefull for automations data:
 3. Connect your buck-boost converter inputs to the printer's 24V power supply output. Trim the converter pots so you get 5V output.
 4. Connect the fan power (+) and (-) wires to the input of your buck-boost converter (24V).
 5. Flash your ESP32 controller over USB with the included configuration ESPHome YAML file. Disconnect from your computer.
-6. Connect your ESP32 controller to the 5V output of your buck-boost converter.
+6. Connect your ESP32 controller to the 5V output of your buck-boost converter. I used a micro USB cable cut to size in my setup above.
 7. Boot the system and verify that the PWM fan works correctly in Klipper. Verify that the ESP32 device boots and you can see it in Home Assistant.
 
 ### Sensor Wiring (3.3V & GND)
@@ -54,18 +54,18 @@ The sensors section contains the usefull for automations data:
 | Intake   | GPIO23   | GPIO18   |  
 | Exhaust  | GPIO19   | GPIO26   |  
 
-> ⚠️ **Note:** Some BME280 sensors require I²C address `0x76` (default is `0x77`)
+> ⚠️ **Note:** Some BME280 sensors (eg. AZ Delivery ones) require I²C address `0x76` (default is `0x77`, which is used in Isik's combo sensors)
 
 ### Servo Wiring
 - PWM → **GPIO16**  
-- Power from ESP32 5V/GND *or* buck-boost  
+- Power from ESP32 5V/GND *or* from the buck-boost converter output
 
 
 ## Servo Calibration
 1. Power ESP32 **without servo connected**  
 2. Set vent to **OFF** in ESPHome/Home Assistant  
-3. Connect servo + install flap  
-4. Enable vent → verify no mechanical overtravel  
+3. Connect servo + install flap in the closed position. 
+4. Set vent to on → verify no mechanical overtravel  
 5. Adjust `servo_vent_closed`/`servo_vent_open` in YAML if needed  
 6. Alternatively, enable the commented out code segment (Servo Control) to create a slider that allows you to manually set an arbitrary servo % value. Note the servo closed and servo open values, divide by 100 and set them in the above YAML placeholders.
 
