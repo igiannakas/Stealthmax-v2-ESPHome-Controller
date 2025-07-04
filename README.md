@@ -14,10 +14,13 @@ As such, the user needs to set the "baseline" for the intake and exhaust sensors
 
 The component exposes all of those sensors, the baseline and the raw data in the Home Assistant UI as below:
 
-![image](https://github.com/user-attachments/assets/5f9ed589-0d48-4a95-b938-120390f0d793)
+![image](https://github.com/user-attachments/assets/9b882253-1b0f-427e-bd5b-799516dc457f)
 ![image](https://github.com/user-attachments/assets/e866ef71-0c28-4a1f-a6ef-436e6a2350fb)
 
 The diagnostic section contains the interim values and baseline offsets. The sensors section contains the usable data - the VOC value suffixed by Manual Calibration is the manually offset value that is set to 100 when the set baseline button is triggered. The non-suffixed values are the stock reported sensor values.
+
+![IMG_6568](https://github.com/user-attachments/assets/7b96b0cb-4057-4568-8a6c-009c103870ea)
+
 
 
 ## Bill of Materials (BOM)
