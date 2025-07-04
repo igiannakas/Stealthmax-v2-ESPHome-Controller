@@ -1,7 +1,7 @@
 # Stealthmax v2 ESP Home Controller
 This project aims to create an alternative controller for the Stealthmax V2 based on an ESP32 micro controller using ESP Home. It offers native integration into Home Assistant, for improved reporting and more granular automation control, while also being able to interface to Klipper using the ESP Home API.
 
-This project assumes a level of familiarity with setting up, flashing and confoiguring ESP32 devices with ESP Home. 
+This project assumes a level of familiarity with setting up, flashing and configuring ESP32 devices with ESP Home. 
 
 ## Why?
 Firstly, I am a huge fan of home assistant, so I wanted to be able to gather historical sensor data in it for visualisation and to judge my carbon effectiveness over time. 
