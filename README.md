@@ -33,7 +33,7 @@ The component exposes all of those sensors, the baseline offsets and the raw dat
 ![image](https://github.com/user-attachments/assets/9b882253-1b0f-427e-bd5b-799516dc457f)
 ![image](https://github.com/user-attachments/assets/4f75d264-e399-48e3-953d-f8b549837a63)
 
-The sensors section contains the usefull for automations data:
+The sensors section contains the data useful for automations:
 1. The VOC value suffixed by Manual Calibration is the manually offset value that is set to 100 when the set baseline button is triggered.
 2. The non-suffixed values are the stock reported sensor values.
 3. The Intake - Exhaust VOC value is the raw delta between the two sensors.
