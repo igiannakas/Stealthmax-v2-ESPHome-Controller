@@ -70,6 +70,7 @@ The sensors section contains the data useful for automations:
 
 > ⚠️ **Note:** On boot up the sensors take approximately 90 seconds to stabilise before they start reporting values.
 
+> ⚠️ **Note:** To be able to adapt the stealthmax fan speed automatically based on chamber temperature, you'll need a separate chamber thermistor as the BME values cannot be used in klipper directly.
 
 ### Servo Wiring
 - PWM → **GPIO16**  
