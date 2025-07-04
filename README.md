@@ -17,7 +17,10 @@ The component exposes all of those sensors, the baseline and the raw data in the
 ![image](https://github.com/user-attachments/assets/9b882253-1b0f-427e-bd5b-799516dc457f)
 ![image](https://github.com/user-attachments/assets/4f75d264-e399-48e3-953d-f8b549837a63)
 
-The diagnostic section contains the interim values and baseline offsets. The sensors section contains the usable data - the VOC value suffixed by Manual Calibration is the manually offset value that is set to 100 when the set baseline button is triggered. The non-suffixed values are the stock reported sensor values.
+The diagnostic section contains the interim values and baseline offsets. The sensors section contains the usable data:
+1. The VOC value suffixed by Manual Calibration is the manually offset value that is set to 100 when the set baseline button is triggered.
+2. The non-suffixed values are the stock reported sensor values
+3. The Intake - Exhaust VOC value is the raw delta between the two sensors.
 
 ![IMG_6568](https://github.com/user-attachments/assets/7b96b0cb-4057-4568-8a6c-009c103870ea)
 
