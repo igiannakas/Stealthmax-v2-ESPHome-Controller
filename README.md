@@ -37,3 +37,70 @@ Please note that depending on the source of your BME sensors you may need to cha
 6. If it does, adjust servo_vent_closed and servo_vent_open values in the Yaml
 7. Alternatively, enable the commented out code segment (Servo Control) to create a slider that allows you to manually set an arbitrary servo % value. Note the servo closed and servo open values, divide by 100 and set them in the above YAML placeholders.
 
+**Software setup:**
+
+The included configuration exposes the temperature, humidity, VOC and servo sensors and switch to be used in automations in Home Assistant and via Klipper.
+
+Integrating to Klipper:
+1. Install Gcode Shell Command via KIAUH
+2. Setup the below macros in Klipper, replacing the IP below with the IP of your ESP32 device. 
+
+```
+[gcode_shell_command open_vent_cmd]
+command: curl -X POST http://172.24.4.180/switch/vent_control/turn_on
+timeout: 30.0
+verbose: false
+
+[gcode_shell_command close_vent_cmd]
+command: curl -X POST http://172.24.4.180/switch/vent_control/turn_off
+timeout: 30.0
+verbose: false
+
+[gcode_shell_command set_voc_baseline_cmd]
+command: curl -X POST http://172.24.4.180/button/set_voc_baseline/press
+timeout: 30.0
+verbose: false
+
+[gcode_macro open_vent]
+gcode:
+  RUN_SHELL_COMMAND CMD=open_vent_cmd
+
+[gcode_macro close_vent]
+gcode:
+  RUN_SHELL_COMMAND CMD=close_vent_cmd
+
+[gcode_macro set_voc_baseline]
+gcode:
+  RUN_SHELL_COMMAND CMD=set_voc_baseline_cmd
+```
+The above macros allow you to open/close the ventilation flap and to set the VOC baseline ("zero out" the sensors) during your print start routines. 
+
+One way to integrate this is as below. In your Print Start macro, check the chamber temperature. If over 20C, this means you are printing a material that needs enclosed printing, hence close the flap.
+```
+{% if target_chamber|int > 20 %}
+  CLOSE_VENT
+{% else %} 
+  OPEN_VENT
+{% endif %}
+```
+The fan is set up as a PWM fan in klipper like the below:
+```
+[fan_generic exhaust_fan]
+pin: PA6
+hardware_pwm: true
+tachometer_pin: PC2
+tachometer_ppr: 2
+max_power: 0.8
+shutdown_speed: 1.0
+kick_start_time: 1.0
+off_below:0.10
+```
+This can then be called in the print start macro as follows:
+```
+{% if target_chamber|int > 20 %}
+  SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3
+{% else %} 
+  SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3
+  UPDATE_DELAYED_GCODE ID=adaptive_exhaust_fan DURATION=30
+{% endif %}
+```
