@@ -1,0 +1,355 @@
+substitutions:
+  device_name: stealthmax
+  # change the below to be your WiFi SSID
+  ssid: Your SSID
+  # change the below to be your WiFi password
+  wifi_password: Your wifi password
+
+  servo_pwm_pin: GPIO16
+  servo_min_level: 2.5% # Corresponds to 500µs pulse (2.5% of 20ms)
+  servo_max_level: 12%  # Corresponds to 2400µs pulse
+  servo_vent_closed: '0.00' # -1 to 1 value corresponding to the servo position resulting in the vent being closed
+  servo_vent_open: '-0.16' # -1 to 1 value corresponding to the servo position resulting in the vent being closed
+  
+  intake_sda: GPIO23
+  intake_scl: GPIO18
+  
+  exhaust_sda: GPIO19
+  exhaust_scl: GPIO26
+  
+
+esphome:
+  name: $device_name
+  on_boot:
+    priority: 200
+    then:
+      - switch.turn_on: vent_control
+
+esp32:
+  board: wemos_d1_mini32
+  framework:
+    type: arduino
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/igiannakas/esphome
+      ref: sgp40
+    components: [ sgp4x ]
+
+logger:
+
+api:
+  password: ""
+
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  ssid: "${ssid}"
+  password: "${wifi_password}"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${device_name}"
+    password: "${wifi_password}"
+
+captive_portal:
+
+web_server:
+  port: 80
+
+
+# Servo control
+servo:
+  - id: my_servo
+    output: pwm_output
+    auto_detach_time: 5s
+    min_level: ${servo_min_level}
+    max_level: ${servo_max_level}
+    restore: false  
+
+output:
+  - platform: ledc
+    id: pwm_output
+    pin: ${servo_pwm_pin}
+    frequency: 50 Hz
+
+globals:
+  - id: voc_baseline_intake_var
+    type: float
+    restore_value: yes  # Persists across reboots
+    initial_value: '33000.0'
+  - id: voc_baseline_exhaust_var
+    type: float
+    restore_value: yes  # Persists across reboots
+    initial_value: '33000.0'    
+
+switch:
+  - platform: template
+    name: "Vent Control"
+    id: vent_control
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - servo.write:
+          id: my_servo
+          level: ${servo_vent_open}
+    turn_off_action:
+      - servo.write:
+          id: my_servo
+          level: ${servo_vent_closed}
+      
+button:
+
+  - platform: template
+    name: "Set VOC Baseline"
+    id: set_voc_baseline
+    on_press:
+      then:
+        - lambda: |-
+            // calculate new baseline
+            float new_baseline_intake = id(intake_voc_raw).state;
+            float new_baseline_exhaust = id(exhaust_voc_raw).state;
+            
+            // save new baseline
+            id(voc_baseline_intake_var) = new_baseline_intake;
+            id(voc_baseline_exhaust_var) = new_baseline_exhaust;
+            
+            id(voc_baseline_intake).publish_state( new_baseline_intake );
+            id(voc_baseline_exhaust).publish_state( new_baseline_exhaust );
+            
+            // Update calibrated sensors immediately
+            id(intake_voc_adjusted).publish_state(-1 * (id(intake_voc_raw).state - new_baseline_intake));
+            id(exhaust_voc_adjusted).publish_state(-1 * (id(exhaust_voc_raw).state - new_baseline_exhaust));
+            
+            id(exhaust_intake_voc_delta).publish_state( (-1 * (id(intake_voc_raw).state - new_baseline_intake)) - (-1 * (id(exhaust_voc_raw).state - new_baseline_exhaust)) );
+
+  - platform: restart
+    name: "Restart device"
+
+#number:
+#  - platform: template
+#    name: Servo Control
+#    min_value: -100
+#    initial_value: 0
+#    max_value: 100
+#    step: 1
+#    optimistic: true
+#    set_action:
+#      then:
+#        - servo.write:
+#            id: my_servo
+#            level: !lambda 'return x / 100.0;'
+
+# VOC control
+i2c:
+  - id: bus_b
+    sda: ${intake_sda}
+    scl: ${intake_scl}
+    scan: true
+  - id: bus_a
+    sda: ${exhaust_sda}
+    scl: ${exhaust_scl}
+    scan: true
+
+
+sensor:
+  - platform: sgp4x
+    i2c_id: bus_b
+    update_interval: 2s
+    voc:
+      name: "Intake VOC"
+    voc_raw:
+      id: intake_voc_raw
+      name: "Intake VOC (Raw)"
+      entity_category: diagnostic
+      filters:
+        - median:
+            window_size: 30
+            send_every: 2
+            send_first_at: 1    
+      on_value:
+        then:
+          - lambda: |-    
+              // Segment below updates intake_voc_adjusted and exhaust_intake_voc_delta
+                   
+              // Offset measurement
+              float new_intake_voc = -1 * (x - id(voc_baseline_intake_var));
+              
+              // Get Exhaust VOC from sensor
+              float exhaust_voc = id(exhaust_voc_adjusted).state;
+              
+              // Update sensors
+              id(intake_voc_adjusted).publish_state(new_intake_voc);
+              id(exhaust_intake_voc_delta).publish_state( new_intake_voc - exhaust_voc );
+              
+              // Publish the latest baseline
+              id(voc_baseline_intake).publish_state( id(voc_baseline_intake_var) );
+              id(voc_baseline_exhaust).publish_state( id(voc_baseline_exhaust_var) );    
+    compensation:
+      temperature_source: intake_temp
+      humidity_source: intake_hum
+      
+  - platform: bme280_i2c
+    id: intake_bme_sensor
+    i2c_id: bus_b
+    address: 0x77
+    update_interval: 60s
+    temperature:
+      id: intake_temp
+      name: "Intake Temperature"
+      oversampling: 16x
+    humidity:
+      id: intake_hum
+      name: "Intake Humidity"
+      oversampling: 16x
+
+  - platform: bme280_i2c
+    id: exhaust_bme_sensor
+    i2c_id: bus_a
+    address: 0x77
+    update_interval: 60s
+    temperature:
+      id: exhaust_temp
+      name: "Exhaust Temperature"
+      oversampling: 16x
+    humidity:
+      id: exhaust_hum
+      name: "Exhaust Humidity"
+      oversampling: 16x
+
+  - platform: sgp4x
+    i2c_id: bus_a
+    update_interval: 2s
+    voc:
+      name: "Exhaust VOC"
+    voc_raw:
+      id: exhaust_voc_raw
+      name: "Exhaust VOC (Raw)"
+      entity_category: diagnostic
+      filters:
+        - median:
+            window_size: 30
+            send_every: 2
+            send_first_at: 1    
+      on_value:
+        then:
+          - lambda: |-
+              // Segment below updates exhaust_voc_adjusted and exhaust_intake_voc_delta
+              
+              // Offset measurement
+              float new_exhaust_voc = -1 * (x - id(voc_baseline_exhaust_var));
+              
+              // Get Exhaust VOC from sensor
+              float intake_voc = id(intake_voc_adjusted).state;
+              
+              // Update sensors
+              id(exhaust_voc_adjusted).publish_state(new_exhaust_voc);
+              id(exhaust_intake_voc_delta).publish_state( intake_voc - new_exhaust_voc );
+              
+              // Publish the latest baseline
+              id(voc_baseline_intake).publish_state( id(voc_baseline_intake_var) );
+              id(voc_baseline_exhaust).publish_state( id(voc_baseline_exhaust_var) );          
+    compensation:
+      temperature_source: exhaust_temp
+      humidity_source: exhaust_hum
+
+  - platform: template
+    id: intake_voc_adjusted
+    name: "Intake VOC (Adjusted)"
+    unit_of_measurement: " "
+    entity_category: diagnostic
+    on_value:
+        then:
+          - lambda: |-
+              // Segment below updates intake_voc_calibrated 
+              
+              // Setup sigmoid calculation variables
+              float v = x;
+      
+              // Sigmoid scaling parameters
+              const float K = 0.0065f;       // Steepness control (higher = steeper curve)
+              const float X0 = 213.0f;     // Midpoint adjustment (index=300 at this value)
+              const float L = 500.0f;      // Maximum index value
+              const float OFFSET = 0.0f; // Baseline index for clean air
+
+              // Calculate scaled sigmoid
+              float ss = K * (v - X0);
+
+              // Standard sigmoid calculation
+              float sig = 1.0f / (1.0f + expf(-ss));
+              
+              // Scale to VOC index range (100-500)
+              float new_intake_voc_calibrated = OFFSET + (L - OFFSET) * sig;
+              
+              id(intake_voc_calibrated).publish_state(new_intake_voc_calibrated);
+
+  - platform: template
+    id: exhaust_voc_adjusted
+    name: "Exhaust VOC (Adjusted)"
+    unit_of_measurement: " "
+    entity_category: diagnostic
+    on_value:
+        then:
+          - lambda: |-
+              // Segment below updates exhaust_voc_calibrated 
+    
+              // Setup sigmoid calculation variables
+              float v = x;
+      
+              // Sigmoid scaling parameters
+              const float K = 0.0065f;       // Steepness control (higher = steeper curve)
+              const float X0 = 213.0f;     // Midpoint adjustment (index=300 at this value)
+              const float L = 500.0f;      // Maximum index value
+              const float OFFSET = 0.0f; // Baseline index for clean air
+
+              // Calculate scaled sigmoid
+              float ss = K * (v - X0);
+
+              // Standard sigmoid calculation
+              float sig = 1.0f / (1.0f + expf(-ss));
+              
+              // Scale to VOC index range (100-500)
+              float new_exhaust_voc_calibrated = OFFSET + (L - OFFSET) * sig;
+              
+              // Update sensors
+              id(exhaust_voc_calibrated).publish_state(new_exhaust_voc_calibrated);
+
+  - platform: template
+    id: exhaust_intake_voc_delta
+    name: "Intake >> Exhaust VOC Delta"
+    icon: "mdi:radiator"
+    unit_of_measurement: " "
+    
+  - platform: template
+    name: "Intake VOC (Manual Calibration)"
+    icon: "mdi:radiator"
+    unit_of_measurement: " "
+    id: intake_voc_calibrated
+    
+  - platform: template
+    name: "Exhaust VOC (Manual Calibration)"
+    icon: "mdi:radiator"
+    unit_of_measurement: " "
+    id: exhaust_voc_calibrated
+
+  - platform: template
+    id: voc_baseline_intake
+    name: "Intake VOC Baseline"
+    icon: "mdi:radiator"
+    unit_of_measurement: " "
+    entity_category: diagnostic
+
+  - platform: template
+    id: voc_baseline_exhaust
+    name: "Exhaust VOC Baseline"
+    icon: "mdi:radiator"
+    unit_of_measurement: " "
+    entity_category: diagnostic
+
+  - platform: wifi_signal
+    name: "Stealthmax WiFi signal"
+    update_interval: 60s
+    
