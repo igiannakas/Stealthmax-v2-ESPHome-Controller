@@ -4,27 +4,30 @@ This project aims to create an alternative controller for the Stealthmax V2 base
 This project assumes a level of familiarity with setting up, flashing and confoiguring ESP32 devices with ESP Home. 
 
 ## Important notes on the VOC sensor values
-The stock ESPHome SGP4x component does not expose the raw VOC sensor values for use. What this means is that over long prints the VOC values will converge to 100, as the software, over time, calibrates itself to the increased ambient VOC values, which it considers the new "baseline".
+The stock ESPHome SGP4x component does not expose the raw VOC sensor values for use. What this means is that **over long prints the VOC values will converge to 100**, as the software, over time, calibrates itself to the increased ambient VOC values, which it considers the new "baseline".
 
-However this is of no benefit for use in a 3d printer! The VOC sensors are used as a proxy to illustrate the carbon effectiveness and to identify when/if carbon replacement is needed. To achieve this, we require the raw VOC sensor data and to calculate the VOC drop between intake and exhaust sensors. 
+However, this is of no benefit for use in a 3d printer! The VOC sensors are used as a proxy to illustrate the carbon effectiveness and to identify when/if carbon replacement is needed. **To achieve this, we require the raw VOC sensor data and to calculate the VOC drop between intake and exhaust sensors.** 
 
-To do this, this configuration calls a custom external component that extends the stock ESPHome module, exposing the raw sensor values. This module also has implemented a "calibration" routine, which creates a static baseline (offset) for the intake and exhaust sensors, which is triggered on demand. It also implements a simple sigmoid function to report the sensor values to a range that is familiar and similar to the stock VOC read outs. It also calculates the delta between the statically calibrated intake and exhaust VOC sensor values.
+To do this, this configuration calls a custom external component that 
+1. Extends the stock ESPHome module, exposing the raw sensor values.
+2. Implements a "calibration" routine, which creates a static baseline (offset) for the intake and exhaust sensors, which is triggered on demand.
+3. Implements a simple sigmoid function to report the statically calibrated sensor values to a range that is familiar and similar to the stock VOC read outs.
+4. Calculates the delta between the statically calibrated intake and exhaust VOC sensor values and shows the "raw" delta - ie not adjusted through the sigmoid function.
 
-As such, the user needs to set the "baseline" for the intake and exhaust sensors, ideally at the start of the print, after the chamber is heatsoaked and before the print begins. This allows the user to monitor the effectiveness of the filtering media through the VOC drop between the two sensors.
+The user needs to set the "baseline offset" for the intake and exhaust sensors, ideally at the start of the print, after the chamber is heatsoaked and before the print begins. This allows to monitor the effectiveness of the filtering media through the VOC drop between the two sensors as reported in the "delta" sensor value.
 
-The component exposes all of those sensors, the baseline and the raw data in the Home Assistant UI as below:
+The component exposes all of those sensors, the baseline offsets and the raw data in the Home Assistant UI as below.
 
 ![image](https://github.com/user-attachments/assets/9b882253-1b0f-427e-bd5b-799516dc457f)
 ![image](https://github.com/user-attachments/assets/4f75d264-e399-48e3-953d-f8b549837a63)
 
-The diagnostic section contains the interim values and baseline offsets. The sensors section contains the usable data:
+The sensors section contains the usefull for automations data:
 1. The VOC value suffixed by Manual Calibration is the manually offset value that is set to 100 when the set baseline button is triggered.
 2. The non-suffixed values are the stock reported sensor values.
 3. The Intake - Exhaust VOC value is the raw delta between the two sensors.
 4. All sensor values are compensated for temperature and humidity.
 
 ![IMG_6568](https://github.com/user-attachments/assets/7b96b0cb-4057-4568-8a6c-009c103870ea)
-
 
 
 ## Bill of Materials (BOM)
