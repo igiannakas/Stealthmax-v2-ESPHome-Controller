@@ -1,6 +1,25 @@
 # Stealthmax v2 ESP Home Controller
 This project aims to create an alternative controller for the Stealthmax V2 based on an ESP32 micro controller using ESP Home. It offers native integration into Home Assistant, for improved reporting and more granular automation control, while also being able to interface to Klipper using the ESP Home API.
 
+This project assumes a level of familiarity with setting up, flashing and confoiguring ESP32 devices with ESP Home. 
+
+## Important notes on the VOC sensor values
+The stock ESPHome SGP4x component does not expose the raw VOC sensor values for use. What this means is that over long prints the VOC values will converge to 100, as the software, over time, calibrates itself to the increased ambient VOC values, which it considers the new "baseline".
+
+However this is of no benefit for use in a 3d printer! The VOC sensors are used as a proxy to illustrate the carbon effectiveness and to identify when/if carbon replacement is needed. To achieve this, we require the raw VOC sensor data and to calculate the VOC drop between intake and exhaust sensors. 
+
+To do this, this configuration calls a custom external component that extends the stock ESPHome module, exposing the raw sensor values. This module also has implemented a "calibration" routine, which creates a static baseline (offset) for the intake and exhaust sensors, which is triggered on demand. It also implements a simple sigmoid function to report the sensor values to a range that is familiar and similar to the stock VOC read outs. It also calculates the delta between the statically calibrated intake and exhaust VOC sensor values.
+
+As such, the user needs to set the "baseline" for the intake and exhaust sensors, ideally at the start of the print, after the chamber is heatsoaked and before the print begins. This allows the user to monitor the effectiveness of the filtering media through the VOC drop between the two sensors.
+
+The component exposes all of those sensors, the baseline and the raw data in the Home Assistant UI as below:
+
+![image](https://github.com/user-attachments/assets/42dd6c7c-19d3-4624-b492-841511a10c7f)
+![image](https://github.com/user-attachments/assets/e866ef71-0c28-4a1f-a6ef-436e6a2350fb)
+
+The diagnostic section contains the interim values and baseline offsets. The sensors section contains the usable data - the VOC value suffixed by Manual Calibration is the manually offset value that is set to 100 when the set baseline button is triggered. The non-suffixed values are the stock reported sensor values.
+
+
 ## Bill of Materials (BOM)
 1. ESP32 D1 Mini, or similar ESP32 micro controllers
 2. A buck-boost converter to power the ESP32 from the 24V printer power supply
