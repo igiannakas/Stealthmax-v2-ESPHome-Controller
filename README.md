@@ -68,6 +68,9 @@ The sensors section contains the usefull for automations data:
 
 > ⚠️ **Note:** Some BME280 sensors (eg. AZ Delivery ones) require I²C address `0x76` (default is `0x77`, which is used in Isik's combo sensors)
 
+> ⚠️ **Note:** On boot up the sensors take approximately 90 seconds to stabilise before they start reporting values.
+
+
 ### Servo Wiring
 - PWM → **GPIO16**  
 - Power from ESP32 5V/GND *or* from the buck-boost converter output
