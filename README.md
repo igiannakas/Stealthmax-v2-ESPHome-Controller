@@ -153,19 +153,17 @@ gcode:
 ```
 [delayed_gcode adaptive_exhaust_fan]
 gcode:
-    {% if printer.heater_bed.target < 90 %}
-        {% if printer["temperature_sensor chamber"].temperature > 40 %}
-           SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0
-           RESPOND TYPE=echo MSG="Chamber temperature over 40C. Danger for heat creep."
-        {% elif printer["temperature_sensor chamber"].temperature > 39 %}
-           SET_FAN_SPEED FAN=exhaust_fan SPEED=0.8
-        {% elif printer["temperature_sensor chamber"].temperature > 38 %}
-           SET_FAN_SPEED FAN=exhaust_fan SPEED=0.6
-        {% elif printer["temperature_sensor chamber"].temperature > 37 %}
-           SET_FAN_SPEED FAN=exhaust_fan SPEED=0.4
-        {% else %}
-           SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3
-        {% endif %}
+    {% if printer["temperature_sensor chamber"].temperature > 40 %}
+        SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0
+        RESPOND TYPE=echo MSG="Chamber temperature over 40C. Danger for heat creep."
+    {% elif printer["temperature_sensor chamber"].temperature > 39 %}
+        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.8
+    {% elif printer["temperature_sensor chamber"].temperature > 38 %}
+        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.7
+    {% elif printer["temperature_sensor chamber"].temperature > 37 %}
+        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.6
+    {% else %}
+        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.4
     {% endif %}
     UPDATE_DELAYED_GCODE ID=adaptive_exhaust_fan DURATION=60
 
