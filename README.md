@@ -205,9 +205,9 @@ gcode:
     {% elif printer["temperature_sensor chamber"].temperature > 38 %}
         SET_FAN_SPEED FAN=exhaust_fan SPEED=0.7
     {% elif printer["temperature_sensor chamber"].temperature > 37 %}
-        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.6
+        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.5
     {% else %}
-        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.4
+        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3
     {% endif %}
     UPDATE_DELAYED_GCODE ID=adaptive_exhaust_fan DURATION=60
 
