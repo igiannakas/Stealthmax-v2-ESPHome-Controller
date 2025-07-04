@@ -90,7 +90,7 @@ pin: PA6
 hardware_pwm: true
 tachometer_pin: PC2
 tachometer_ppr: 2
-max_power: 0.8
+max_power: 0.8 # 100pc is way too fast and unecessary
 shutdown_speed: 1.0
 kick_start_time: 1.0
 off_below:0.10
@@ -98,9 +98,38 @@ off_below:0.10
 This can then be called in the print start macro as follows:
 ```
 {% if target_chamber|int > 20 %}
-  SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3
+  SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3 # approx 3k RPM
 {% else %} 
-  SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3
+  SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3 # approx 3k RPM
   UPDATE_DELAYED_GCODE ID=adaptive_exhaust_fan DURATION=30
 {% endif %}
 ```
+The above snippet sets the exhaust fan to 30%, which is approximately 3k RPM when the fan is configured to 80% max PWM value, when printing ABS/ASA/high temp material. If we are printing a low temp material, it calls the adaptive exhaust fan delayed gcode that gradually ramps up / down the fan depending on chamber temperature to allow the chamber to remain below 40C. In your print end macro, simply call the cancel_adaptive_exhaust to stop adapting the exhaust speed and turn off the fan.
+
+```
+[delayed_gcode adaptive_exhaust_fan]
+gcode:
+    {% if printer.heater_bed.target < 90 %}
+        {% if printer["temperature_sensor chamber"].temperature > 40 %}
+           SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0
+           RESPOND TYPE=echo MSG="Chamber temperature over 40C. Danger for heat creep."
+        {% elif printer["temperature_sensor chamber"].temperature > 39 %}
+           SET_FAN_SPEED FAN=exhaust_fan SPEED=0.8
+        {% elif printer["temperature_sensor chamber"].temperature > 38 %}
+           SET_FAN_SPEED FAN=exhaust_fan SPEED=0.6
+        {% elif printer["temperature_sensor chamber"].temperature > 37 %}
+           SET_FAN_SPEED FAN=exhaust_fan SPEED=0.4
+        {% else %}
+           SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3
+        {% endif %}
+    {% endif %}
+    UPDATE_DELAYED_GCODE ID=adaptive_exhaust_fan DURATION=60
+
+[gcode_macro cancel_adaptive_exhaust]
+gcode:
+  RESPOND TYPE=echo MSG="Adaptive exhaust cancelled"
+  SET_FAN_SPEED FAN=exhaust_fan SPEED=0.0
+  UPDATE_DELAYED_GCODE ID=adaptive_exhaust_fan DURATION=0
+```
+
+You can view my complete configuration here: https://github.com/igiannakas/Voron-backups/tree/main/printer_data/config
