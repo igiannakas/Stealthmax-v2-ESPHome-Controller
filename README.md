@@ -3,6 +3,18 @@ This project aims to create an alternative controller for the Stealthmax V2 base
 
 This project assumes a level of familiarity with setting up, flashing and confoiguring ESP32 devices with ESP Home. 
 
+## Why?
+Firstly, I am a huge fan of home assistant, so I wanted to be able to gather historical sensor data in it for visualisation and to judge my carbon effectiveness over time. 
+
+In addition, this avoids any direct interaction between the filter controller and klipper. There is no custom code to install in klipper, no separate MCU to link klipper with, no potential for the controller to cause klipper shut downs, no USB connectivity to klipper required etc. 
+
+On the flip side, this is very much a skeleton set up and just does three jobs:
+1. Controls the servo vent (open or closed)
+2. Reports on VOC values and intake and exhaust VOC deltas to gauge carbon effectiveness
+3. Adjusts filter fan speeds with the fan directly connected to the printer's main board.
+
+Having the setup decoupled from Klipper and focused on its core jobs was appealing to me, hence this setup.
+
 ## Important notes on the VOC sensor values
 The stock ESPHome SGP4x component does not expose the raw VOC sensor values for use. What this means is that **over long prints the VOC values will converge to 100**, as the software, over time, calibrates itself to the increased ambient VOC values, which it considers the new "baseline".
 
