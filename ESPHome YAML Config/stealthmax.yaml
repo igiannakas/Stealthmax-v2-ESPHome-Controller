@@ -86,6 +86,69 @@ globals:
     restore_value: yes  # Persists across reboots
     initial_value: '33000.0'    
 
+
+number:
+  - platform: template
+    name: Servo Control
+    min_value: ${servo_vent_open}
+    initial_value: ${servo_vent_open}
+    max_value: ${servo_vent_closed}
+    step: 0.01
+    optimistic: true
+    set_action:
+      then:
+        - servo.write:
+            id: my_servo
+            level: !lambda 'return x;'
+            
+  - platform: template
+    name: "Intake VOC Baseline (Manual)"
+    id: voc_baseline_intake_manual
+    min_value: 10000
+    max_value: 40000
+    step: 0.1
+    initial_value: 33000
+    restore_value: true
+    optimistic: true
+    entity_category: diagnostic
+    set_action:
+      then:
+        - lambda: |-
+            id(voc_baseline_intake_var) = x;
+            id(voc_baseline_intake).publish_state(x);
+
+            // Recalculate adjusted VOC
+            float intake_voc = id(intake_voc_raw).state;
+            float exhaust_voc = id(exhaust_voc_adjusted).state;
+
+            float new_intake_voc_adjusted = -1 * (intake_voc - x);
+            id(intake_voc_adjusted).publish_state(new_intake_voc_adjusted);
+            id(exhaust_intake_voc_delta).publish_state(new_intake_voc_adjusted - exhaust_voc);
+
+  - platform: template
+    name: "Exhaust VOC Baseline (Manual)"
+    id: voc_baseline_exhaust_manual
+    min_value: 10000
+    max_value: 40000
+    step: 0.1
+    initial_value: 33000
+    restore_value: true
+    optimistic: true
+    entity_category: diagnostic
+    set_action:
+      then:
+        - lambda: |-
+            id(voc_baseline_exhaust_var) = x;
+            id(voc_baseline_exhaust).publish_state(x);
+
+            // Recalculate adjusted VOC
+            float exhaust_voc = id(exhaust_voc_raw).state;
+            float intake_voc = id(intake_voc_adjusted).state;
+
+            float new_exhaust_voc_adjusted = -1 * (exhaust_voc - x);
+            id(exhaust_voc_adjusted).publish_state(new_exhaust_voc_adjusted);
+            id(exhaust_intake_voc_delta).publish_state(intake_voc - new_exhaust_voc_adjusted);
+
 switch:
   - platform: template
     name: "Vent Control"
@@ -102,10 +165,10 @@ switch:
           level: ${servo_vent_closed}
       
 button:
-
   - platform: template
     name: "Set VOC Baseline"
     id: set_voc_baseline
+    entity_category: diagnostic
     on_press:
       then:
         - lambda: |-
@@ -120,28 +183,46 @@ button:
             id(voc_baseline_intake).publish_state( new_baseline_intake );
             id(voc_baseline_exhaust).publish_state( new_baseline_exhaust );
             
+            // Update number components so UI shows them
+            id(voc_baseline_intake_manual).publish_state(new_baseline_intake);
+            id(voc_baseline_exhaust_manual).publish_state(new_baseline_exhaust);
+            
             // Update calibrated sensors immediately
             id(intake_voc_adjusted).publish_state(-1 * (id(intake_voc_raw).state - new_baseline_intake));
             id(exhaust_voc_adjusted).publish_state(-1 * (id(exhaust_voc_raw).state - new_baseline_exhaust));
             
             id(exhaust_intake_voc_delta).publish_state( (-1 * (id(intake_voc_raw).state - new_baseline_intake)) - (-1 * (id(exhaust_voc_raw).state - new_baseline_exhaust)) );
 
+  - platform: template
+    name: "Sync Intake Baseline"
+    id: sync_intake_baseline
+    entity_category: diagnostic
+    on_press:
+      then:
+        - lambda: |-
+            // read raw values
+            float i_raw = id(intake_voc_raw).state;
+            float e_raw = id(exhaust_voc_raw).state;
+            float baseline_exh = id(voc_baseline_exhaust_var);
+            
+            // compute intake baseline so adjusted values match:
+            // -1*(i_raw - new_baseline_intake) == -1*(e_raw - baseline_exh)
+            float new_baseline_intake = i_raw - (e_raw - baseline_exh);
+            
+            // save and publish new intake baseline
+            id(voc_baseline_intake_var) = new_baseline_intake;
+            id(voc_baseline_intake).publish_state(new_baseline_intake);
+            id(voc_baseline_intake_manual).publish_state(new_baseline_intake);
+            
+            // recalc and publish adjusted VOCs (they’ll now be equal)
+            float adjusted = -1 * (i_raw - new_baseline_intake);
+            id(intake_voc_adjusted).publish_state(adjusted);
+            id(exhaust_voc_adjusted).publish_state(adjusted);
+            id(exhaust_intake_voc_delta).publish_state(0);
+            
   - platform: restart
     name: "Restart device"
 
-#number:
-#  - platform: template
-#    name: Servo Control
-#    min_value: -100
-#    initial_value: 0
-#    max_value: 100
-#    step: 1
-#    optimistic: true
-#    set_action:
-#      then:
-#        - servo.write:
-#            id: my_servo
-#            level: !lambda 'return x / 100.0;'
 
 # VOC control
 i2c:
