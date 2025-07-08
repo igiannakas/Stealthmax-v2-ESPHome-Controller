@@ -250,6 +250,8 @@ sensor:
     update_interval: 2s
     voc:
       name: "Intake VOC"
+      algorithm_tuning:
+        gating_max_duration_minutes: 3000
     voc_raw:
       id: intake_voc_raw
       name: "Intake VOC (Raw)"
@@ -294,6 +296,9 @@ sensor:
       id: intake_hum
       name: "Intake Humidity"
       oversampling: 16x
+    pressure:
+      name: "Intake Pressure"
+      oversampling: 16x
 
   - platform: bme280_i2c
     id: exhaust_bme_sensor
@@ -308,12 +313,17 @@ sensor:
       id: exhaust_hum
       name: "Exhaust Humidity"
       oversampling: 16x
+    pressure:
+      name: "Exhaust Pressure"
+      oversampling: 16x
 
   - platform: sgp4x
     i2c_id: bus_a
     update_interval: 2s
     voc:
       name: "Exhaust VOC"
+      algorithm_tuning:
+        gating_max_duration_minutes: 3000
     voc_raw:
       id: exhaust_voc_raw
       name: "Exhaust VOC (Raw)"
