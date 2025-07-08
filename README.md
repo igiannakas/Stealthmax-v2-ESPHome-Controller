@@ -83,7 +83,7 @@ The sensors section contains the data useful for automations:
 3. Connect servo + install flap in the closed position. 
 4. Set vent to on → verify no mechanical overtravel  
 5. Adjust `servo_vent_closed`/`servo_vent_open` in YAML if needed  
-6. Alternatively, enable the commented out code segment (Servo Control) to create a slider that allows you to manually set an arbitrary servo % value. Note the servo closed and servo open values, divide by 100 and set them in the above YAML placeholders.
+6. Alternatively, use the Servo Control slider to manually set an arbitrary servo % value. Note the servo closed and servo open values, divide by 100 and set them in the above YAML placeholders. The slider is set conservatively, so if you need more range update the corresponding value substitutions in the header.
 
 ## Software Setup
 
@@ -109,6 +109,11 @@ command: curl -X POST http://172.24.4.180/button/set_voc_baseline/press
 timeout: 30.0
 verbose: false
 
+[gcode_shell_command sync_intake_voc_baseline_to_exhaust_cmd]
+command: curl -X POST http://172.24.4.180/button/sync_intake_baseline/press
+timeout: 30.0
+verbose: false
+
 [gcode_macro open_vent]
 gcode:
   RUN_SHELL_COMMAND CMD=open_vent_cmd
@@ -120,6 +125,10 @@ gcode:
 [gcode_macro set_voc_baseline]
 gcode:
   RUN_SHELL_COMMAND CMD=set_voc_baseline_cmd
+
+[gcode_macro sync_intake_voc_baseline_to_exhaust]
+gcode:
+  RUN_SHELL_COMMAND CMD=set_voc_baseline_cmd
 ```
 
 ### Klipper Macro Integration
@@ -127,7 +136,9 @@ gcode:
 #### Servo Vent
 Firstly integrate the servo activated vent and VOC baselining in your print start macro. 
 
-My prefered method is to check the requested chamber temperature by the slicer. If, for example it is over 20C, this means you are printing a material that needs enclosed printing, hence close the flap. After all print preparation is done but before the hotend is set to the print temperature, set the VOC baseline so the sensors are "zeroed out".
+My prefered method is to check the requested chamber temperature by the slicer. If, for example it is over 20C, this means you are printing a material that needs enclosed printing, hence close the flap. 
+
+After all print preparation is done but before the hotend is set to the print temperature, you can optionally sync the intake VOC baseline to the exhaust so the values match before printing commences.
 ```
 {% if target_chamber|int > 20 %}
   CLOSE_VENT
@@ -140,7 +151,7 @@ My prefered method is to check the requested chamber temperature by the slicer. 
 ... QGL ...
 ... Bed Mesh ...
 
- SET_VOC_BASELINE
+ sync_intake_voc_baseline_to_exhaust # Optionally equalize VOC readings before a print starts
 
 ... Heat hotend to print temp...
 
