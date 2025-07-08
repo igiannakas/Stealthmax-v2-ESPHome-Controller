@@ -90,6 +90,7 @@ globals:
 number:
   - platform: template
     name: Servo Control
+    id: servo_control  
     min_value: ${servo_vent_open}
     initial_value: ${servo_vent_open}
     max_value: ${servo_vent_closed}
@@ -159,10 +160,17 @@ switch:
       - servo.write:
           id: my_servo
           level: ${servo_vent_open}
+      - number.set:
+          id: servo_control
+          value: ${servo_vent_open}
+
     turn_off_action:
       - servo.write:
           id: my_servo
           level: ${servo_vent_closed}
+      - number.set:
+          id: servo_control
+          value: ${servo_vent_closed}
       
 button:
   - platform: template
