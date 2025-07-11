@@ -23,7 +23,9 @@ esphome:
   on_boot:
     priority: 200
     then:
-      - switch.turn_on: vent_control
+      - select.set:                     # optional: start fully open like before
+          id: vent_position
+          option: "100"
 
 esp32:
   board: wemos_d1_mini32
@@ -90,17 +92,22 @@ globals:
 number:
   - platform: template
     name: Servo Control
-    id: servo_control  
-    min_value: ${servo_vent_open}
-    initial_value: ${servo_vent_open}
-    max_value: ${servo_vent_closed}
+    id: servo_control
+    min_value: ${servo_vent_open}      
+    max_value: ${servo_vent_closed}    
     step: 0.01
     optimistic: true
     set_action:
       then:
         - servo.write:
             id: my_servo
-            level: !lambda 'return x;'
+            level: !lambda 'return x;'  
+        # whenever someone moves the slider directly,
+        # put the dropdown into “Manual”
+        - select.set:
+            id: vent_position
+            option: "Manual"
+
             
   - platform: template
     name: "Intake VOC Baseline (Manual)"
@@ -150,27 +157,43 @@ number:
             id(exhaust_voc_adjusted).publish_state(new_exhaust_voc_adjusted);
             id(exhaust_intake_voc_delta).publish_state(intake_voc - new_exhaust_voc_adjusted);
 
-switch:
-  - platform: template
-    name: "Vent Control"
-    id: vent_control
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    turn_on_action:
-      - servo.write:
-          id: my_servo
-          level: ${servo_vent_open}
-      - number.set:
-          id: servo_control
-          value: ${servo_vent_open}
 
-    turn_off_action:
-      - servo.write:
-          id: my_servo
-          level: ${servo_vent_closed}
-      - number.set:
-          id: servo_control
-          value: ${servo_vent_closed}
+select:
+  - platform: template
+    name: "Vent Position (0 = closed, 100 = open)"
+    id: vent_position
+    restore_value: true          # remember last position after reboot
+    optimistic: true             # we set the hardware ourselves
+    options:
+      - "0"
+      - "25"
+      - "50"
+      - "75"
+      - "100"
+      - "Manual"
+    initial_option: "100"        # equivalent to the old on-boot “open”; change if you prefer
+    set_action:
+      then:
+        - lambda: |-
+            const float CLOSED = ${servo_vent_closed};  
+            const float OPEN   = ${servo_vent_open}; 
+            const std::string opt(x);
+
+            // Default to “Manual” → do nothing; number component drives the servo
+            if (opt == "Manual") return;
+
+            // Map option → target servo position
+            float percent = 0.0;
+            if (opt == "0")   percent = 0.00f;
+            if (opt == "25")  percent = 0.25f;
+            if (opt == "50")  percent = 0.50f;
+            if (opt == "75")  percent = 0.75f;
+            if (opt == "100") percent = 1.00f;
+
+            float target = CLOSED + (OPEN - CLOSED) * percent;
+
+            id(my_servo).write(target);            // move the servo
+            id(servo_control).publish_state(target); // keep number in sync
       
 button:
   - platform: template
