@@ -91,45 +91,9 @@ The included configuration exposes the temperature, humidity, VOC and servo sens
 
 ### Klipper Macro Setup
 1. Install Gcode Shell Command via KIAUH
-2. Setup the below macros in Klipper, replacing the IP below with the IP of your ESP32 device. The below macros allow you to open/close the ventilation flap and to set the VOC baseline ("zero out" the sensors) during your print start routines. 
+2. Setup the included macros in Klipper, replacing the IP below with the IP of your ESP32 device. The included macros allow you to open/close the ventilation flap and to set the VOC baseline ("zero out" the sensors) during your print start routines. 
+3. In addition the included macros allow you to set up dynamic fan speed and vent % control subject to the printer chamber temperature. See section below.
 
-```
-[gcode_shell_command open_vent_cmd]
-command: curl -X POST http://172.24.4.180/switch/vent_control/turn_on
-timeout: 30.0
-verbose: false
-
-[gcode_shell_command close_vent_cmd]
-command: curl -X POST http://172.24.4.180/switch/vent_control/turn_off
-timeout: 30.0
-verbose: false
-
-[gcode_shell_command set_voc_baseline_cmd]
-command: curl -X POST http://172.24.4.180/button/set_voc_baseline/press
-timeout: 30.0
-verbose: false
-
-[gcode_shell_command sync_intake_voc_baseline_to_exhaust_cmd]
-command: curl -X POST http://172.24.4.180/button/sync_intake_baseline/press
-timeout: 30.0
-verbose: false
-
-[gcode_macro open_vent]
-gcode:
-  RUN_SHELL_COMMAND CMD=open_vent_cmd
-
-[gcode_macro close_vent]
-gcode:
-  RUN_SHELL_COMMAND CMD=close_vent_cmd
-
-[gcode_macro set_voc_baseline]
-gcode:
-  RUN_SHELL_COMMAND CMD=set_voc_baseline_cmd
-
-[gcode_macro sync_intake_voc_baseline_to_exhaust]
-gcode:
-  RUN_SHELL_COMMAND CMD=set_voc_baseline_cmd
-```
 
 ### Klipper Macro Integration
 
@@ -195,42 +159,11 @@ gcode:
 
 ```
 
-```
-[gcode_macro PRINT_END]
-gcode:
-    .....
+The above snippet sets the exhaust fan to 30%, which is approximately 3k RPM when printing ABS/ASA/high temp material. If we are printing a low temp material, it calls the adaptive exhaust fan delayed gcode that gradually ramps up / down the fan depending on chamber temperature to allow the chamber to remain below 40C. 
 
-    TURN_OFF_HEATERS
-    cancel_adaptive_exhaust
+In the print end macro, it calls the cancel_adaptive_exhaust to stop adapting the exhaust speed and turn off the fan.
 
-    .....
-```
-
-```
-[delayed_gcode adaptive_exhaust_fan]
-gcode:
-    {% if printer["temperature_sensor chamber"].temperature > 40 %}
-        SET_FAN_SPEED FAN=exhaust_fan SPEED=1.0
-        RESPOND TYPE=echo MSG="Chamber temperature over 40C. Danger for heat creep."
-    {% elif printer["temperature_sensor chamber"].temperature > 39 %}
-        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.8
-    {% elif printer["temperature_sensor chamber"].temperature > 38 %}
-        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.65
-    {% elif printer["temperature_sensor chamber"].temperature > 37 %}
-        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.5
-    {% else %}
-        SET_FAN_SPEED FAN=exhaust_fan SPEED=0.3
-    {% endif %}
-    UPDATE_DELAYED_GCODE ID=adaptive_exhaust_fan DURATION=60
-
-[gcode_macro cancel_adaptive_exhaust]
-gcode:
-  RESPOND TYPE=echo MSG="Adaptive exhaust cancelled"
-  SET_FAN_SPEED FAN=exhaust_fan SPEED=0.0
-  UPDATE_DELAYED_GCODE ID=adaptive_exhaust_fan DURATION=0
-```
-
-The above snippet sets the exhaust fan to 30%, which is approximately 3k RPM when printing ABS/ASA/high temp material. If we are printing a low temp material, it calls the adaptive exhaust fan delayed gcode that gradually ramps up / down the fan depending on chamber temperature to allow the chamber to remain below 40C. In the print end macro, it calls the cancel_adaptive_exhaust to stop adapting the exhaust speed and turn off the fan.
+In addition the adaptive exhaust macro also adjusts vent open % (25-50-75-100) subject to chamber temperature conditions.
 
 
 You can view my complete configuration here: https://github.com/igiannakas/Voron-backups/tree/main/printer_data/config
